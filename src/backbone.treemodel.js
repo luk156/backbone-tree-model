@@ -43,10 +43,6 @@
             this._nodes.parent = this;
             if(node && node[this.nodesAttribute]) this.add(node[this.nodesAttribute]);
             
-            this.once('sync', function(model, node) {
-                if (node[this.nodesAttribute]) this.add(node[this.nodesAttribute]);
-            });
-            
             this.on('node:change', function(model, collection, opts) {
                 var parent = this.parent();
                 if (parent) {
@@ -69,6 +65,24 @@
         
         nodesAttribute: 'nodes',
 
+       // Fetch the model from the server, merging the response with the model's
+        // local attributes. Any changed attributes will trigger a "change" event.
+        fetch: function (options) {
+            options = _.extend({}, options);
+            var success = options.success;
+            options.success = function (model, resp, options) {
+                var serverAttrs = options.parse ? model.parse(resp, options) : resp;
+                model._nodes = new model.collectionConstructor([], {
+                    model: model.constructor,
+                });
+                model._nodes.parent = model;
+                if (serverAttrs && serverAttrs[model.nodesAttribute]) {model.add(serverAttrs[model.nodesAttribute]);}
+                if (success) {success.call(options.context, model, resp, options);}
+            };
+            return Backbone.Model.prototype.fetch.apply(this, [options]);
+
+        },
+        
         /**
          * returns JSON object representing tree, account for branch changes
          */
